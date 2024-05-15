@@ -5,7 +5,8 @@ let client: mongo.MongoClient;
 
 (async function () {
   dotenv.config();
-  let cursor1, cursor2: mongo.ChangeStream;
+  let cursor1: mongo.ChangeStream;
+  let cursor2: mongo.ChangeStream;
   try {
     const db: mongo.Db = await connect();
     if (db) {
@@ -14,11 +15,23 @@ let client: mongo.MongoClient;
       // first cursor
       cursor1 = collection.watch(
         [
-          { $match: { "operationType": { $in: ["insert", "update", "replace"] } } },
-          { $project: { "_id": 1, "fullDocument": 1, "ns": 1, "documentKey": 1 } }
+          {
+            $match: {
+              "operationType": { $in: ["insert", "update", "replace"] }
+            }
+          },
+          {
+            $project: {
+              "_id": 1,
+              "fullDocument": 1,
+              "ns": 1,
+              "documentKey": 1,
+            }
+          }
         ],
         {
           fullDocument: "updateLookup",
+          batchSize: parseInt(config("BATCH_SIZE")),
         }
       );
 
@@ -57,7 +70,8 @@ let client: mongo.MongoClient;
           resumeAfter: {
             "_data": firstChangeId["_data"],
             "_kind": firstChangeId["_kind"],
-          }
+          },
+          batchSize: parseInt(config("BATCH_SIZE")),
         }
       );
 
@@ -99,7 +113,7 @@ let client: mongo.MongoClient;
 })();
 
 async function connect(): Promise<mongo.Db> {
-	client = new mongo.MongoClient(config("DATABASE_URL"));
+  client = new mongo.MongoClient(config("DATABASE_URL"));
   try {
     await client.connect();
     const db: mongo.Db = client.db(config("DB_NAME"));
